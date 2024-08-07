@@ -1,10 +1,10 @@
-# This workflow analyzes the Osprey MATLAB repository with MATLAB Code Analyzer in a Docker container
+# This workflow analyzes the Osprey MATLAB repository using Octave for static code analysis
 
 name: MATLAB Code Scanning
 
 # Controls when the action will run.
 on:
-  # Triggers the workflow on push or pull request events for the main branch
+  # Triggers the workflow on push or pull request events for the develop branch
   push:
     branches: [ develop ]
   pull_request:
@@ -14,8 +14,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  # This workflow contains a single job called "build"
-  build:
+  analyze:
     # The type of runner that the job will run on
     runs-on: ubuntu-latest
 
@@ -23,15 +22,21 @@ jobs:
     steps:
       # Checks out your repository under $GITHUB_WORKSPACE, so your job can access it
       - uses: actions/checkout@v4
-      
-      # Sets up MATLAB on a GitHub-hosted runner
-      - name: Set up MATLAB
-        uses: matlab-actions/setup-matlab@v2
 
-      # Run static code analysis using MATLAB Code Analyzer (checkcode)
+      # Install Octave
+      - name: Install Octave
+        run: sudo apt-get install -y octave
+
+      # Run static code analysis using a custom Octave script
       - name: Run Code Analysis
         run: |
-          matlab -batch "addpath('code'); files = dir('code/**/*.m'); for k = 1:length(files), filePath = fullfile(files(k).folder, files(k).name); issues = checkcode(filePath, '-id', '-severity', 'all'); disp(filePath); disp(issues); end" > code-analysis-results.txt
+          echo "addpath('code'); files = dir('code/**/*.m'); results = {}; for k = 1:length(files), filePath = fullfile(files(k).folder, files(k).name); fid = fopen(filePath, 'r'); code = fread(fid, '*char')'; fclose(fid); issues = codeAnalysis(code); if ~isempty(issues), results{end+1} = {filePath, issues}; end; end; save('code-analysis-results.mat', 'results');" > analyze_code.m
+          octave --no-gui analyze_code.m
+
+      # Convert results to a human-readable format
+      - name: Convert Results to Text
+        run: |
+          octave --no-gui --eval "load('code-analysis-results.mat'); fid = fopen('code-analysis-results.txt', 'w'); for i = 1:length(results), fprintf(fid, 'File: %s\n', results{i}{1}); fprintf(fid, '%s\n', results{i}{2}{:}); end; fclose(fid);"
 
       # Upload code analysis results to GitHub
       - name: Upload analysis results
