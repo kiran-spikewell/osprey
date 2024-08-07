@@ -23,15 +23,21 @@ jobs:
       # Checks out your repository under $GITHUB_WORKSPACE, so your job can access it
       - uses: actions/checkout@v4
 
-      # Use a Docker container with MATLAB Code Analyzer
-      - name: Run MATLAB Code Analyzer
+      # Set up Octave on the GitHub runner
+      - name: Install Octave
         run: |
-          docker run --rm -v $GITHUB_WORKSPACE:/workspace matlab:latest /bin/bash -c "matlab -batch 'addpath(genpath(\"/workspace\")); results = checkcode(\"/workspace/code\", \"-fullpath\"); disp(results);'"
+          sudo apt-get update
+          sudo apt-get install -y octave
 
-      # Save the results to a file (optional)
+      # Run static code analysis using Octave
+      - name: Run Code Analysis
+        run: |
+          octave --eval "addpath(genpath('code')); results = mlint('code'); disp(results);"
+
+      # Save the results to a file
       - name: Save results
         run: |
-          docker run --rm -v $GITHUB_WORKSPACE:/workspace matlab:latest /bin/bash -c "matlab -batch 'addpath(genpath(\"/workspace\")); results = checkcode(\"/workspace/code\", \"-fullpath\"); save(\"/workspace/code-analysis-results.mat\", \"results\");'"
+          octave --eval "addpath(genpath('code')); results = mlint('code'); save('code-analysis-results.mat', 'results');"
 
       # Upload code analysis results to GitHub
       - name: Upload analysis results
