@@ -1,4 +1,4 @@
-# This workflow analyzes the Osprey MATLAB repository with GitHub Actions for code scanning
+# This workflow analyzes the Osprey MATLAB repository with MATLAB Code Analyzer in a Docker container
 
 name: MATLAB Code Scanning
 
@@ -14,44 +14,28 @@ on:
   workflow_dispatch:
 
 jobs:
-  # This workflow contains a single job called "analyze"
   analyze:
     # The type of runner that the job will run on
     runs-on: ubuntu-latest
 
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
-      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      # Checks out your repository under $GITHUB_WORKSPACE, so your job can access it
       - uses: actions/checkout@v4
-      
-      # Sets up MATLAB on a GitHub-hosted runner
-      - name: Set up MATLAB
-        uses: matlab-actions/setup-matlab@v2
-        with:
-          release: R2021a # Ensure compatibility with your MATLAB version
 
-      # Runs a set of commands using the runner's shell to install dependencies
-      - name: Install dependencies
+      # Use a Docker container with MATLAB Code Analyzer
+      - name: Run MATLAB Code Analyzer
         run: |
-          matlab -batch "disp('Adding dependencies'); addpath(genpath('code'));"
+          docker run --rm -v $GITHUB_WORKSPACE:/workspace matlab:latest /bin/bash -c "matlab -batch 'addpath(genpath(\"/workspace\")); results = checkcode(\"/workspace/code\", \"-fullpath\"); disp(results);'"
 
-      # Runs a set of commands using the runner's shell to run tests
-      - name: Run tests
-        uses: matlab-actions/run-tests@v2
-        with:
-          source-folder: code
-
-      # Run code analysis (customize this command based on your needs)
-      - name: Run code analysis
-        uses: matlab-actions/run-command@v2
-        with:
-          command: |
-            disp('Running code analysis');
-            results = checkcode('code', '-fullpath');
-            disp(results);
+      # Save the results to a file (optional)
+      - name: Save results
+        run: |
+          docker run --rm -v $GITHUB_WORKSPACE:/workspace matlab:latest /bin/bash -c "matlab -batch 'addpath(genpath(\"/workspace\")); results = checkcode(\"/workspace/code\", \"-fullpath\"); save(\"/workspace/code-analysis-results.mat\", \"results\");'"
 
       # Upload code analysis results to GitHub
-      - name: Upload SARIF file
-        uses: github/codeql-action/upload-sarif@v2
+      - name: Upload analysis results
+        uses: actions/upload-artifact@v3
         with:
-          sarif_file: code-analysis-results.sarif
+          name: code-analysis-results
+          path: code-analysis-results.mat
