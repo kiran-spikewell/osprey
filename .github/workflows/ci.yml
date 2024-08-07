@@ -23,25 +23,25 @@ jobs:
       # Checks out your repository under $GITHUB_WORKSPACE, so your job can access it
       - uses: actions/checkout@v4
 
-      # Set up Octave on the GitHub runner
-      - name: Install Octave
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y octave
+      # Install Node.js
+      - name: Set up Node.js
+        uses: actions/setup-node@v2
+        with:
+          node-version: '14'
 
-      # Run static code analysis using Octave
+      # Install mlint (or any other suitable linter)
+      - name: Install mlint
+        run: |
+          npm install -g mlint
+
+      # Run static code analysis using mlint
       - name: Run Code Analysis
         run: |
-          octave --eval "addpath(genpath('code')); results = mlint('code'); disp(results);"
-
-      # Save the results to a file
-      - name: Save results
-        run: |
-          octave --eval "addpath(genpath('code')); results = mlint('code'); save('code-analysis-results.mat', 'results');"
+          mlint code/**/*.m > code-analysis-results.txt
 
       # Upload code analysis results to GitHub
       - name: Upload analysis results
         uses: actions/upload-artifact@v3
         with:
           name: code-analysis-results
-          path: code-analysis-results.mat
+          path: code-analysis-results.txt
